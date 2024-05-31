@@ -117,10 +117,10 @@ async function makeCall(req, res) {
         if (!name_store || !userID || !date || !budget || !clientNumber || !emailAddress || !firstName || !lastName || !addressOne || !addressDetails || !city || !crmID) {
             throw new Error("Datos inválidos")
         } else {
-            const userIDFound = await CustomerModel.findOne({ ID_shopify: userID })
             const storeFound = await StoresModel.findOne({ name_store: name_store })
+            const userIDFound = await CustomerModel.findOne({ ID_shopify: userID })
 
-            if(!userIDFound || !storeFound) {
+            if(!userIDFound) {
                 const customer = new CustomerModel({
                     store: storeFound,
                     ID_shopify: userID,
@@ -137,7 +137,7 @@ async function makeCall(req, res) {
                     city: city,
                     counter_calls: 0
                 })
-                const newCustomer = await customer.save()
+                await customer.save()
         
                 const setAddress = processAddress(`${addressOne}, ${addressDetails || ''}`)
         
