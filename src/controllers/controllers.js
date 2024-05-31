@@ -126,11 +126,13 @@ async function makeCall(req, res) {
         const twiml = new VoiceResponse()
 
         const { name_store, userID, date, budget, clientNumber, emailAddress, firstName, lastName, addressOne, addressDetails, city, crmID } = req.body
+
+        const storeFound = await StoresModel.findOne({ name_store: name_store })
+        const userIDFound = await CustomerModel.findOne({ ID_shopify: userID })
+
         if (!name_store || !userID || !date || !budget || !clientNumber || !emailAddress || !firstName || !lastName || !addressOne || !addressDetails || !city || !crmID) {
             throw new Error("Datos inválidos")
         } else {
-            const storeFound = await StoresModel.findOne({ name_store: name_store })
-            const userIDFound = await CustomerModel.findOne({ ID_shopify: userID })
 
             if(!userIDFound) {
                 const customer = new CustomerModel({
@@ -210,7 +212,7 @@ async function makeCall(req, res) {
                     from: process.env.SUPPORT_NUMBER
                 })
 
-                userData.updateData({
+                await userData.updateData({
                     userID: userID,
                     store: storeFound,
                     number: clientNumber,
