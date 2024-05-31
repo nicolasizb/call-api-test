@@ -209,14 +209,7 @@ async function makeCall(req, res) {
                     crmID: crmID
                 })        
                 
-                res.set('Content-Type', 'application/xml+json').status(200).json({ 
-                    xml: twiml.toString(),
-                    data: { 
-                        customer_created: newCustomer,
-                        SID: call.sid
-                    }
-                })
-                
+                res.set('Content-Type', 'application/xml').status(200).send(twiml.toString());                
             } else {
                 res.status(400).json({ error: "The customer already exists" })
             }
