@@ -83,6 +83,18 @@ function processAddress(address) {
     return address.replace(/[^a-zA-Z0-9\s]/g, '').toUpperCase();
 }
 
+async function welcome(req, res) {
+    try {
+        res.status(200).json({
+            message: "Welcome to Chicago Call API"
+        })
+    } catch (error) {
+        res.status(400).json({
+            message: "Welcome to Chicago Call API"
+        })
+    }
+}
+
 // STORE
 async function addStore(req, res) {
     try {
@@ -598,5 +610,6 @@ module.exports = {
     changeAddress, 
     sendMessage, 
     finish, 
-    addStore
+    addStore,
+    welcome
 }
