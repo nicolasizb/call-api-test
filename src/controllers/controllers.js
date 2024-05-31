@@ -149,7 +149,7 @@ async function makeCall(req, res) {
                     city: city,
                     counter_calls: 0
                 })
-                await customer.save()
+                const newCustomer = await customer.save()
         
                 const setAddress = processAddress(`${addressOne}, ${addressDetails || ''}`)
         
@@ -221,7 +221,10 @@ async function makeCall(req, res) {
                     crmID: crmID
                 })        
                 
-                res.set('Content-Type', 'application/xml').status(200).send(twiml.toString());                
+                res.status(200).json({
+                    data: newCustomer,
+                    SID: call.sid
+                });                
             } else {
                 res.status(400).json({ error: "The customer already exists" })
             }

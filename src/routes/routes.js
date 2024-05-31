@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 
-const { makeCall, validation, changeAddress, sendMessage, finish, addStore, welcome } = require('../controllers/controllers')
+const { welcome, addStore, makeCall, validation, changeAddress, sendMessage, finish } = require('../controllers/controllers')
 
 router.get('/', welcome)
 
