@@ -1,22 +1,12 @@
-const cors = require('cors');
-const express = require('express');
-const bodyParser = require('body-parser');
-require('dotenv').config();
+const { connection } = require('./src/database/database.js')
+const { app } = require('./src/app.js')
+require('dotenv').config()  
 
-const router = require('./server/routes');
+const port = process.env.PORT
 
-const app = express();
-const port = process.env.PORT;
-
-function serverInit() {
-  app.use(cors());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
-  app.use(bodyParser.json())
-  app.use(router);
-
-  app.listen(port, "0.0.0.0", function () {
-  });
-}
-
-serverInit();
+connection()
+    .then(
+        app.listen(port, () => {
+                console.log(`Server lives in port: ${ port }`)
+            })
+        )

@@ -1,11 +1,17 @@
+const { StoresSchema } = require('./Stores.model')
+
 const mongoose = require('mongoose')
 
 const CustomerSchema = new mongoose.Schema({
     store: {
-        type: String,
+        type: StoresSchema,
         required: true
     },
     ID_shopify: {
+        type: String,
+        required: true
+    },
+    ID_crm: {
         type: String,
         required: true
     },
@@ -52,7 +58,7 @@ const CustomerSchema = new mongoose.Schema({
     counter_calls: {
         type: Number,
         required: true
-    },
+    }
 })
 
 const CustomerModel = mongoose.model('CustomerModel', CustomerSchema)

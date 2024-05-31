@@ -6,50 +6,127 @@ const authToken = process.env.AUTH_TOKEN
 const twilio = require('twilio')(accountSid, authToken)
 
 const CustomerModel = require('../models/Customer.model.js')
-const StoresModel = require('../models/Stores.model.js')
+const { StoresModel } = require('../models/Stores.model.js')
 
-let userData = {
+class UserData {
+    constructor({ 
+        userID,
+        store,
+        number,
+        address,
+        city,
+        confirmation_status,
+        callSID,
+        crmID, 
+    }) {
+        this.userID = userID || '';
+        this.store = store || {};
+        this.number = number || '';
+        this.address = address || '';
+        this.city = city || '';
+        this.confirmation_status = confirmation_status || '';
+        this.callSID = callSID || '';
+        this.crmID = crmID || '';
+    }
+
+    updateData(param, value) {
+        if (typeof param === 'object') {
+            for (const key in param) {
+                if (Object.prototype.hasOwnProperty.call(param, key)) {
+                    this[key] = param[key]
+                }
+            }
+        } else {
+            switch(param) {
+                case 'userID':
+                    this.userID = value
+                    break;
+                case 'store':
+                    this.store = value
+                    break;
+                case 'number':
+                    this.number = value
+                    break;
+                case 'address':
+                    this.address = value
+                    break;
+                case 'city':
+                    this.city = value
+                    break;
+                case "confirmation_status":
+                    this.confirmation_status = value
+                    break;
+                case 'callSID':
+                    this.callSID = value
+                    break;
+                case 'crmID':
+                    this.crmID = value
+                    break;
+                default:
+                    console.error('Invalid parameter')
+            }
+        }
+    }
+}
+const userData = new UserData({
     userID: '',
-    store: '',
+    store: {},
     number: '',
     address: '',
     city: '',
-    digit: '',  
+    confirmation_status: '',
     callSID: '',
     crmID: ''
-}
-
-function changeData(userID, store, number, address, city, digit, callSID, crmID) {
-    if (userID !== undefined) userData.userID = userID
-    if (store !== undefined) userData.store = store
-    if (number !== undefined) userData.number = number
-    if (address !== undefined) userData.address = address
-    if (city !== undefined) userData.city = city
-    if (digit !== undefined) userData.digit = digit
-    if (callSID !== undefined) userData.callSID = callSID
-    if (crmID !== undefined) userData.crmID = crmID
-}
+});
 
 function processAddress(address) {
     return address.replace(/[^a-zA-Z0-9\s]/g, '').toUpperCase();
 }
 
+// STORE
+async function addStore(req, res) {
+    try {
+        const { id_shopify, name_store, webhook  } = req.body
+
+        const storeFound = await StoresModel.findOne({ id_shopify: id_shopify })
+
+        if(!storeFound) {
+            const store = new StoresModel({
+                id_shopify: id_shopify,
+                name_store: name_store,
+                webhook: webhook,
+            })
+
+            const newStore = await store.save()
+
+            res.status(200).json({ store: newStore })
+        } else {
+            res.status(400).json({ error: "The store already exists" })
+        }
+    } catch (error) {
+        res.status(400).json({ error: error.message })
+    }
+}
+
+// CALL
 async function makeCall(req, res) {
     try {
         const twiml = new VoiceResponse()
 
-        const { store, userID, date, budget, clientNumber, emailAddress, firstName, lastName, addressOne, addressDetails, city, crmID } = req.body
-        if (!store || !userID || !date || !budget || !clientNumber || !emailAddress || !firstName || !lastName || !addressOne || !addressDetails || !city || !crmID) {
+        const { name_store, userID, date, budget, clientNumber, emailAddress, firstName, lastName, addressOne, addressDetails, city, crmID } = req.body
+        if (!name_store || !userID || !date || !budget || !clientNumber || !emailAddress || !firstName || !lastName || !addressOne || !addressDetails || !city || !crmID) {
             throw new Error("Datos inválidos")
         } else {
             const userIDFound = await CustomerModel.findOne({ ID_shopify: userID })
+            const storeFound = await StoresModel.findOne({ name_store: name_store })
 
-            if(!userIDFound) {
+            if(!userIDFound || !storeFound) {
                 const customer = new CustomerModel({
-                    store: store,
+                    store: storeFound,
                     ID_shopify: userID,
+                    ID_crm: crmID,
                     date: date,
-                    confirmation_status: undefined,
+                    confirmation_status: "Pendiente",
                     budget: budget,
                     client_number: clientNumber,
                     email_address: emailAddress,
@@ -58,10 +135,9 @@ async function makeCall(req, res) {
                     address: addressOne,
                     address_details: addressDetails,
                     city: city,
-                    crmID: crmID 
+                    counter_calls: 0
                 })
-        
-                const newCustomer = customer.save()
+                const newCustomer = await customer.save()
         
                 const setAddress = processAddress(`${addressOne}, ${addressDetails || ''}`)
         
@@ -71,7 +147,7 @@ async function makeCall(req, res) {
                     language: 'es-MX',
                     voice: 'Polly.Mia-Neural',
                     rate: '82%'
-                },`Hola ${firstName} ${lastName}! Le llamamos de la tienda ${store} para confirmar la dirección de envío de su pedido. ¿Es correcta la dirección: ${setAddress}, en ${city}`)
+                },`Hola ${firstName} ${lastName}! Le llamamos de la tienda ${name_store} para confirmar la dirección de envío de su pedido. ¿Es correcta la dirección: ${setAddress}, en ${city}`)
                 
                 const gather = twiml.gather({
                     numDigits: 1,
@@ -107,7 +183,7 @@ async function makeCall(req, res) {
                     }, 'Marque el número 1, si está correcta. O marque el número 2 para repetir la dirección.')
         
                     if(i === 2) {
-                        changeData(undefined, undefined, undefined, undefined, undefined, 'Cambiar', undefined, undefined)
+                        userData.updateData( "confirmation_status", "Cambiar" )                        
                     }
                 }
                 twiml.say({
@@ -121,13 +197,26 @@ async function makeCall(req, res) {
                     to: clientNumber,
                     from: process.env.SUPPORT_NUMBER
                 })
-        
-                changeData(userID, store, clientNumber, setAddress, city, undefined, call.sid, crmID)
-        
-                res.status(200).json({ 
-                    customer_created: newCustomer,
-                    SID: call.sid 
+
+                userData.updateData({
+                    userID: userID,
+                    store: storeFound,
+                    number: clientNumber,
+                    address: setAddress,
+                    city: city,
+                    confirmation_status: "Pendiente",
+                    callSID: call.sid,
+                    crmID: crmID
+                })        
+                
+                res.set('Content-Type', 'application/xml+json').status(200).json({ 
+                    xml: twiml.toString(),
+                    data: { 
+                        customer_created: newCustomer,
+                        SID: call.sid
+                    }
                 })
+                
             } else {
                 res.status(400).json({ error: "The customer already exists" })
             }
@@ -144,16 +233,12 @@ async function validation(req, res) {
 
         switch (digitPressed) { 
             case '1':
-                changeData(undefined, undefined, undefined, undefined, undefined, 'Confirmado', undefined, undefined)      
+                userData.updateData("confirmation_status", "Confirmado")
 
-                if(userData.store == 'Velez') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/3vks138/', userData)
-                } else if (userData.store == 'Will') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/3vq7qsy/', userData)
-                } else if(userData.store == 'Test') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/2y49aol/', userData)
+                if(userData.store.webhook) {
+                    await axios.post(`${userData.store.webhook}`, userData)
                 } else {
-                    res.status(404).json({ message: "Webhook store isn't exists" })
+                    res.status(404).json({ message: "Store isn't found"})
                 }
 
                 twiml.say({
@@ -203,7 +288,7 @@ async function validation(req, res) {
                     }, 'Marque el número 1, si está correcta. O marque el número 2 para cambiar dirección de envío.')
         
                     if(i === 2) {
-                        changeData(undefined, undefined, undefined, undefined, undefined, 'Cambiar', undefined, undefined)       
+                        userData.updateData("confirmation_status", "Cambiar")                               
                     }
                 }
 
@@ -229,7 +314,7 @@ async function validation(req, res) {
                     }, 'Opción no válida. Marque el número 1, si está correcta. O marque el número 2 para cambiar dirección de envío.')
                     
                     if(i === 2) {
-                        changeData(undefined, undefined, undefined, undefined, undefined, 'Cambiar', undefined, undefined)       
+                        userData.updateData("confirmation_status", "Cambiar")                               
                     }
                 }
                 
@@ -254,16 +339,12 @@ async function changeAddress(req, res) {
         
         switch(digitPressed) {
             case '1' :
-                changeData(undefined, undefined, undefined, undefined, undefined, 'Confirmado', undefined, undefined)       
+                userData.updateData("confirmation_status", "Confirmado")                       
                 
-                if(userData.store == 'Velez') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/3vks138/', userData)
-                } else if (userData.store == 'Will') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/3vq7qsy/', userData)
-                } else if(userData.store == 'Test') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/2y49aol/', userData)
+                if(userData.store.webhook) {
+                    await axios.post(`${userData.store.webhook}`, userData)
                 } else {
-                    res.status(404).json({ message: "Webhook store isn't exists" })
+                    res.status(404).json({ message: "Store isn't found"})
                 }
         
                 twiml.say({
@@ -301,7 +382,7 @@ async function changeAddress(req, res) {
                     }, 'Marque 1 para autorizar que lo contactemos al whatsapp para cambiar la dirección. O marque 2 para repetir la dirección actual.')
         
                     if(i === 2) {
-                        changeData(undefined, undefined, undefined, undefined, undefined, 'Cambiar', undefined, undefined)       
+                        userData.updateData("confirmation_status", "Cambiar")                               
                     }
                 }
 
@@ -327,7 +408,7 @@ async function changeAddress(req, res) {
                     }, 'Opción no válida. Marque 1 para autorizar que lo contactemos al whatsapp para cambiar la dirección. O marque 2 para repetir la dirección actual.')
                     
                     if(i === 2) {
-                        changeData(undefined, undefined, undefined, undefined, undefined, 'Cambiar', undefined, undefined)       
+                        userData.updateData("confirmation_status", "Cambiar")                               
                     }
                 }
                 
@@ -353,16 +434,12 @@ async function sendMessage(req, res) {
 
         switch(digitPressed) {
             case '1':
-                changeData(undefined, undefined, undefined, undefined, undefined, 'Cambiar', undefined, undefined)       
+                userData.updateData("confirmation_status", "Confirmado")                       
                 
-                if(userData.store == 'Velez') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/3vks138/', userData)
-                } else if (userData.store == 'Will') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/3vq7qsy/', userData)
-                } else if(userData.store == 'Test') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/2y49aol/', userData)
+                if(userData.store.webhook) {
+                    await axios.post(`${userData.store.webhook}`, userData)
                 } else {
-                    res.status(404).json({ message: "Webhook store isn't exists" })
+                    res.status(404).json({ message: "Store isn't found"})
                 }
 
                 twiml.say({
@@ -406,7 +483,7 @@ async function sendMessage(req, res) {
                     }, 'Marque el número 1, si está correcta. O marque el número 2 para autorizar contactarlo por Whatsapp para cambiar la dirección.')
         
                     if(i === 2) {
-                        changeData(undefined, undefined, undefined, undefined, undefined, 'Cambiar', undefined, undefined)       
+                        userData.updateData("confirmation_status", "Cambiar")                               
                     }
                 }
 
@@ -433,7 +510,7 @@ async function sendMessage(req, res) {
                     }, 'Opción no válida. Marque el número 1, si está correcta. O marque el número 2 para autorizar contactarlo por Whatsapp para cambiar la dirección.')
 
                     if(i === 2) {
-                        changeData(undefined, undefined, undefined, undefined, undefined, 'Cambiar', undefined, undefined)       
+                        userData.updateData("confirmation_status", "Cambiar")                               
                     }
                 }
 
@@ -458,16 +535,12 @@ async function finish (req, res) {
 
         switch(digitPressed) {
             case '1':
-                changeData(undefined, undefined, undefined, undefined, undefined, 'Confirmado', undefined, undefined)       
+                userData.updateData("confirmation_status", "Confirmado")                       
                 
-                if(userData.store == 'Velez') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/3vks138/', userData)
-                } else if (userData.store == 'Will') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/3vq7qsy/', userData)
-                } else if(userData.store == 'Test') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/2y49aol/', userData)
+                if(userData.store.webhook) {
+                    await axios.post(`${userData.store.webhook}`, userData)
                 } else {
-                    res.status(404).json({ message: "Webhook store isn't exists" })
+                    res.status(404).json({ message: "Store isn't found"})
                 }
         
                 twiml.say({
@@ -477,14 +550,12 @@ async function finish (req, res) {
                 }, 'Usted confirmó que la dirección mencionada es correcta. ¡Hasta luego!');
                 break;
             case '2':
-                changeData(undefined, undefined, undefined, undefined, undefined, 'Cambiar', undefined, undefined)       
+                userData.updateData("confirmation_status", "Cambiar")                       
                 
-                if(userData.store === 'Velez') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/3vks138/', userData)
-                } else if (userData.store === 'Will') {
-                    await axios.post('https://hooks.zapier.com/hooks/catch/18861658/3vq7qsy/', userData)
+                if(userData.store.webhook) {
+                    await axios.post(`${userData.store.webhook}`, userData)
                 } else {
-                    res.status(404).json({ message: "Webhook store isn't exists" })
+                    res.status(404).json({ message: "Store isn't found"})
                 }
 
                 twiml.say({
@@ -510,7 +581,7 @@ async function finish (req, res) {
                     }, 'Opción no válida. Marque el número 1, si está correcta. O marque el número 2 para autorizar contactarlo por Whatsapp para cambiar la dirección.')
 
                     if(i === 2) {
-                        changeData(undefined, undefined, undefined, undefined, undefined, 'Cambiar', undefined, undefined)       
+                        userData.updateData("confirmation_status", "Cambiar")                               
                     }
                 }
 
@@ -525,7 +596,7 @@ async function finish (req, res) {
     } catch (error) {
         console.error(error)
         res.status(400).json({ error: error.message })
-    } 
+    }
 }
 
 module.exports = {
@@ -533,5 +604,6 @@ module.exports = {
     validation, 
     changeAddress, 
     sendMessage, 
-    finish
+    finish, 
+    addStore
 }

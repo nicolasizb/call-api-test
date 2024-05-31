@@ -17,4 +17,7 @@ const StoresSchema = new mongoose.Schema({
 
 const StoresModel = mongoose.model('StoresModel', StoresSchema)
 
-module.exports = StoresModel
+module.exports = { 
+    StoresModel,
+    StoresSchema
+}
