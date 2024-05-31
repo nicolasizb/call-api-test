@@ -134,6 +134,15 @@ async function makeCall(req, res) {
             throw new Error("Datos inválidos")
         } else {
 
+            const [storeFound, userIDFound] = await Promise.all([
+                StoresModel.findOne({ name_store: name_store }),
+                CustomerModel.findOne({ ID_shopify: userID })
+            ]);
+    
+            if (!storeFound) {
+                throw new Error("Store not found");
+            }
+
             if(!userIDFound) {
                 const customer = new CustomerModel({
                     store: storeFound,
