@@ -17,7 +17,6 @@ class UserData {
         city,
         confirmation_status,
         callSID,
-        crmID, 
     }) {
         this.userID = userID || '';
         this.store = store || {};
@@ -26,7 +25,6 @@ class UserData {
         this.city = city || '';
         this.confirmation_status = confirmation_status || '';
         this.callSID = callSID || '';
-        this.crmID = crmID || '';
     }
 
     updateData(param, value) {
@@ -59,9 +57,6 @@ class UserData {
                 case 'callSID':
                     this.callSID = value
                     break;
-                case 'crmID':
-                    this.crmID = value
-                    break;
                 default:
                     console.error('Invalid parameter')
             }
@@ -76,7 +71,6 @@ const userData = new UserData({
     city: '',
     confirmation_status: '',
     callSID: '',
-    crmID: ''
 });
 
 function processAddress(address) {
@@ -125,43 +119,16 @@ async function makeCall(req, res) {
     try {
         const twiml = new VoiceResponse()
 
-        const { name_store, userID, date, budget, clientNumber, emailAddress, firstName, lastName, addressOne, addressDetails, city, crmID } = req.body
+        const { name_store, userID, date, budget, clientNumber, emailAddress, firstName, lastName, addressOne, addressDetails, city } = req.body
 
         const storeFound = await StoresModel.findOne({ name_store: name_store })
-        const userIDFound = await CustomerModel.findOne({ ID_shopify: userID })
-
-        if (!name_store || !userID || !date || !budget || !clientNumber || !emailAddress || !firstName || !lastName || !addressOne || !addressDetails || !city || !crmID) {
+        
+        if (!name_store || !userID || !date || !budget || !clientNumber || !emailAddress || !firstName || !lastName || !addressOne || !addressDetails || !city) {
             throw new Error("Datos inválidos")
         } else {
-
-            const [storeFound, userIDFound] = await Promise.all([
-                StoresModel.findOne({ name_store: name_store }),
-                CustomerModel.findOne({ ID_shopify: userID })
-            ]);
-    
             if (!storeFound) {
                 throw new Error("Store not found");
-            }
-
-            if(!userIDFound) {
-                const customer = new CustomerModel({
-                    store: storeFound,
-                    ID_shopify: userID,
-                    ID_crm: crmID,
-                    date: date,
-                    confirmation_status: "Pendiente",
-                    budget: budget,
-                    client_number: clientNumber,
-                    email_address: emailAddress,
-                    first_name: firstName,
-                    last_name: lastName,
-                    address: addressOne,
-                    address_details: addressDetails,
-                    city: city,
-                    counter_calls: 0
-                })
-                const newCustomer = await customer.save()
-        
+            } else {
                 const setAddress = processAddress(`${addressOne}, ${addressDetails || ''}`)
         
                 twiml.pause({ length: 1 })
@@ -229,15 +196,11 @@ async function makeCall(req, res) {
                     city: city,
                     confirmation_status: "Pendiente",
                     callSID: call.sid,
-                    crmID: crmID
                 })        
                 
                 res.status(200).json({
-                    data: newCustomer,
                     SID: call.sid
-                });                
-            } else {
-                res.status(400).json({ error: "The customer already exists" })
+                });              
             }
         }
     } catch (error) {
