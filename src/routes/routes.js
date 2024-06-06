@@ -1,7 +1,83 @@
 const express = require('express')
 const router = express.Router()
 
+const axios = require('axios');
+const VoiceResponse = require('twilio').twiml.VoiceResponse
+
+const accountSid = process.env.ACCOUNT_SID
+const authToken = process.env.AUTH_TOKEN
+const twilio = require('twilio')(accountSid, authToken)
+
 const { welcome, addStore, makeCall, validation, changeAddress, sendMessage, finish } = require('../controllers/controllers')
+
+function processAddress(address) {
+    return address.replace(/[^a-zA-Z0-9\s]/g, '').toUpperCase();
+}
+
+class UserData {
+    constructor({ 
+        userID,
+        store,
+        number,
+        address,
+        city,
+        confirmation_status,
+        callSID,
+    }) {
+        this.userID = userID || '';
+        this.store = store || {};
+        this.number = number || '';
+        this.address = address || '';
+        this.city = city || '';
+        this.confirmation_status = confirmation_status || '';
+        this.callSID = callSID || '';
+    }
+
+    updateData(param, value) {
+        if (typeof param === 'object') {
+            for (const key in param) {
+                if (Object.prototype.hasOwnProperty.call(param, key)) {
+                    this[key] = param[key]
+                }
+            }
+        } else {
+            switch(param) {
+                case 'userID':
+                    this.userID = value
+                    break;
+                case 'store':
+                    this.store = value
+                    break;
+                case 'number':
+                    this.number = value
+                    break;
+                case 'address':
+                    this.address = value
+                    break;
+                case 'city':
+                    this.city = value
+                    break;
+                case "confirmation_status":
+                    this.confirmation_status = value
+                    break;
+                case 'callSID':
+                    this.callSID = value
+                    break;
+                default:
+                    console.error('Invalid parameter')
+            }
+        }
+    }
+}
+const userData = new UserData({
+    userID: '',
+    store: {},
+    number: '',
+    address: '',
+    city: '',
+    confirmation_status: '',
+    callSID: '',
+});
 
 router.get('/', welcome)
 
