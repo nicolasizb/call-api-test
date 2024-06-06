@@ -93,7 +93,7 @@ router.post('/call-status', async (req, res) => {
     const webhookUrl = 'https://hooks.zapier.com/hooks/catch/18861658/2yjhba3/'; // Reemplaza con tu URL de Zapier
 
     // Enviar el mensaje a Zapier
-    axios.post(webhookUrl, { message })
+    await axios.post(webhookUrl, { message })
         .then(response => {
             console.log('Message sent to Zapier:', response.data);
         })
