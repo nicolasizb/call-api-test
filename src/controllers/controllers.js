@@ -120,88 +120,83 @@ async function makeCall(req, res) {
         const twiml = new VoiceResponse()
 
         const { name_store, userID, date, budget, clientNumber, emailAddress, firstName, lastName, addressOne, addressDetails, city } = req.body
-
-        const storeFound = await StoresModel.findOne({ name_store: name_store })
         
         if (!name_store || !userID || !date || !budget || !clientNumber || !emailAddress || !firstName || !lastName || !addressOne || !addressDetails || !city) {
             throw new Error("Datos inválidos")
         } else {
-            if (!storeFound) {
-                throw new Error("Store not found");
-            } else {
-                const setAddress = processAddress(`${addressOne}, ${addressDetails || ''}`)
-        
-                twiml.pause({ length: 1 })
-                
-                twiml.say({ 
+            const setAddress = processAddress(`${addressOne}, ${addressDetails || ''}`)
+    
+            twiml.pause({ length: 1 })
+            
+            twiml.say({ 
+                language: 'es-MX',
+                voice: 'Polly.Mia-Neural',
+                rate: '82%'
+            },`Hola ${firstName} ${lastName}! Le llamamos de la tienda ${name_store} para confirmar la dirección de envío de su pedido. ¿Es correcta la dirección: ${setAddress}, en ${city}`)
+            
+            const gather = twiml.gather({
+                numDigits: 1,
+                action: 'https://call-api-phi.vercel.app/validation',
+                method: 'POST',
+                timeout: 10
+            })
+            
+            gather.say({
+                language: 'es-MX',
+                voice: 'Polly.Mia-Neural',
+                rate: '82%'
+            }, 'Marque el número 1, si está correcta la dirección. O marque el número 2 para repetirla.')
+    
+            for (let i = 0; i<= 2; i++) {
+                twiml.say({
                     language: 'es-MX',
                     voice: 'Polly.Mia-Neural',
                     rate: '82%'
-                },`Hola ${firstName} ${lastName}! Le llamamos de la tienda ${name_store} para confirmar la dirección de envío de su pedido. ¿Es correcta la dirección: ${setAddress}, en ${city}`)
-                
-                const gather = twiml.gather({
+                }, `Su dirección es: ${setAddress} en ${city}?`)
+    
+                const repeatGather = twiml.gather({
                     numDigits: 1,
                     action: 'https://call-api-phi.vercel.app/validation',
                     method: 'POST',
                     timeout: 10
                 })
-                
-                gather.say({
+            
+                repeatGather.say({
                     language: 'es-MX',
                     voice: 'Polly.Mia-Neural',
                     rate: '82%'
-                }, 'Marque el número 1, si está correcta la dirección. O marque el número 2 para repetirla.')
-        
-                for (let i = 0; i<= 2; i++) {
-                    twiml.say({
-                        language: 'es-MX',
-                        voice: 'Polly.Mia-Neural',
-                        rate: '82%'
-                    }, `Su dirección es: ${setAddress} en ${city}?`)
-        
-                    const repeatGather = twiml.gather({
-                        numDigits: 1,
-                        action: 'https://call-api-phi.vercel.app/validation',
-                        method: 'POST',
-                        timeout: 10
-                    })
-                
-                    repeatGather.say({
-                        language: 'es-MX',
-                        voice: 'Polly.Mia-Neural',
-                        rate: '82%'
-                    }, 'Marque el número 1, si está correcta. O marque el número 2 para repetir la dirección.')
-        
-                    if(i === 2) {
-                        userData.updateData( "confirmation_status", "Cambiar" )                        
-                    }
+                }, 'Marque el número 1, si está correcta. O marque el número 2 para repetir la dirección.')
+    
+                if(i === 2) {
+                    userData.updateData( "confirmation_status", "Cambiar" )                        
                 }
-                twiml.say({
-                    language: 'es-MX',
-                    voice: 'Polly.Mia-Neural',
-                    rate: '82%'
-                }, 'Nos pondremos en contacto con usted por whatsapp para confirmar su dirección.')
-                
-                const call = await twilio.calls.create({
-                    twiml: twiml.toString(),
-                    to: clientNumber,
-                    from: process.env.SUPPORT_NUMBER
-                })
-
-                await userData.updateData({
-                    userID: userID,
-                    store: storeFound,
-                    number: clientNumber,
-                    address: setAddress,
-                    city: city,
-                    confirmation_status: "Pendiente",
-                    callSID: call.sid,
-                })        
-                
-                res.status(200).json({
-                    SID: call.sid
-                });              
             }
+            twiml.say({
+                language: 'es-MX',
+                voice: 'Polly.Mia-Neural',
+                rate: '82%'
+            }, 'Nos pondremos en contacto con usted por whatsapp para confirmar su dirección.')
+            
+            const call = await twilio.calls.create({
+                twiml: twiml.toString(),
+                to: clientNumber,
+                from: process.env.SUPPORT_NUMBER,
+                statusCallback: 'https://yourdomain.com/call-status',
+                statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']
+            })
+            await userData.updateData({
+                userID: userID,
+                store: name_store,
+                number: clientNumber,
+                address: setAddress,
+                city: city,
+                confirmation_status: "Pendiente",
+                callSID: call.sid,
+            })        
+            
+            res.status(200).json({
+                SID: call.sid
+            });              
         }
     } catch (error) {
         res.status(400).json({ error: error.message })
