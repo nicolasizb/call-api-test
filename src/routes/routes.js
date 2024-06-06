@@ -175,7 +175,7 @@ router.post('/call', async (req, res) => {
                 to: clientNumber,
                 from: process.env.SUPPORT_NUMBER,
                 statusCallback: 'https://call-api-test.vercel.app/call-status',
-                statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']
+                statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed', 'busy', 'no-answer', 'failed']
             })
             await userData.updateData({
                 userID: userID,
