@@ -95,7 +95,12 @@ router.post('/call-status', async (req, res) => {
             return res.sendStatus(200);
         }
 
+        console.log('Received allowed call status:', callStatus);
+        console.log('Call SID:', callSid);
+
         const message = { SID: callSid, Status: callStatus };
+
+        const webhookUrl = 'https://hooks.zapier.com/hooks/catch/18861658/2yjhba3/'; 
 
         try {
             const response = await axios.post(webhookUrl, message);
