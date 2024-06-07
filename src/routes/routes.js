@@ -82,23 +82,33 @@ const userData = new UserData({
 router.get('/', welcome)
 
 // WEBHOOK CALL CHANGES STATUS
-router.post('/call-status', async (req, res) => {
-    const body = req.body;
-    const callSid = req.body.CallSid;
+const allowedEvents = ['queued', 'initiated', 'ringing', 'in-progress', 'completed', 'busy', 'no-answer', 'failed'];
 
-    const message = { SID: callSid, Status: body }
+app.post('/call-status', async (req, res) => {
+    try {
+        console.log('Received call status callback:', req.body);
 
-    const webhookUrl = 'https://hooks.zapier.com/hooks/catch/18861658/2yjhba3/'; 
+        const callStatus = req.body.CallStatus;
+        const callSid = req.body.CallSid;
 
-    await axios.post(webhookUrl, { message })
-        .then(response => {
+        if (!allowedEvents.includes(callStatus)) {
+            return res.sendStatus(200);
+        }
+
+        const message = { SID: callSid, Status: callStatus };
+
+        try {
+            const response = await axios.post(webhookUrl, message);
             console.log('Message sent to Zapier:', response.data);
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error sending message to Zapier:', error);
-        });
+        }
 
-    res.sendStatus(200);
+        res.sendStatus(200);
+    } catch (error) {
+        console.error('Error in /call-status handler:', error);
+        res.sendStatus(500);
+    }
 });
 
 // STORE
@@ -172,6 +182,7 @@ router.post('/call', async (req, res) => {
                 to: clientNumber,
                 from: process.env.SUPPORT_NUMBER,
                 statusCallback: 'https://call-api-test.vercel.app/call-status',
+                statusCallbackEvent: ['initiated', 'ringing', 'in-progress', 'completed', 'busy', 'no-answer', 'failed']
             })
             await userData.updateData({
                 userID: userID,
