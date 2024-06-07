@@ -198,8 +198,7 @@ router.post('/call', async (req, res) => {
                 city: city,
                 confirmation_status: "Pendiente",
                 callSID: call.sid,
-            })        
-            
+            })         
             res.status(200).json({
                 SID: call.sid
             });              
