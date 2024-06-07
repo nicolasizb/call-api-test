@@ -84,7 +84,7 @@ router.get('/', welcome)
 // WEBHOOK CALL CHANGES STATUS
 const allowedEvents = ['queued', 'initiated', 'ringing', 'in-progress', 'completed', 'busy', 'no-answer', 'failed'];
 
-app.post('/call-status', async (req, res) => {
+router.post('/call-status', async (req, res) => {
     try {
         console.log('Received call status callback:', req.body);
 
