@@ -81,18 +81,14 @@ const userData = new UserData({
 
 router.get('/', welcome)
 
-// WEBHOOK CALL CHANGES STATUS
 router.post('/call-status', async (req, res) => {
     const callStatus = req.body.CallStatus;
     const callSid = req.body.CallSid;
 
-    // Crear el mensaje a enviar a Zapier
     const message = { SID: callSid, Status: callStatus }
 
-    // URL del webhook de Zapier
-    const webhookUrl = 'https://api.dapta.ai/api/chicago-boys-171-718-6/twilio-call-status-changes?x-api-key=EKsSb-4dcc2f30-d227-428b-98a5-285e3c8c39bc-a'; // Reemplaza con tu URL de Zapier
+    const webhookUrl = 'https://hooks.zapier.com/hooks/catch/18861658/2yjhba3/'; 
 
-    // Enviar el mensaje a Zapier
     await axios.post(webhookUrl, { message })
         .then(response => {
             console.log('Message sent to Zapier:', response.data);
