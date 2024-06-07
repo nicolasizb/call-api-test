@@ -81,11 +81,12 @@ const userData = new UserData({
 
 router.get('/', welcome)
 
+// WEBHOOK CALL CHANGES STATUS
 router.post('/call-status', async (req, res) => {
-    const callStatus = req.body.CallStatus;
+    const body = req.body;
     const callSid = req.body.CallSid;
 
-    const message = { SID: callSid, Status: callStatus }
+    const message = { SID: callSid, Status: body }
 
     const webhookUrl = 'https://hooks.zapier.com/hooks/catch/18861658/2yjhba3/'; 
 
@@ -171,7 +172,7 @@ router.post('/call', async (req, res) => {
                 to: clientNumber,
                 from: process.env.SUPPORT_NUMBER,
                 statusCallback: 'https://call-api-test.vercel.app/call-status',
-                statusCallbackEvent: ['queued', 'ringing', 'in-progress', 'canceled', 'completed', 'busy', 'no-answer', 'failed']
+                statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed', 'busy', 'no-answer']
             })
             await userData.updateData({
                 userID: userID,
