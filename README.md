@@ -60,7 +60,7 @@ Para realizar una solicitud POST a la API, sigue estos pasos:
             "__v": 0
         },
         "SID": "CAa310b19d1d0e52aa9850927cf5592446"
-    }' [URL de tu API]/[ruta del endpoint]
+    }'
     ```
 
 5. **Respuesta Esperada**: Se debe realizar una llamada una vez se suministren los datos en el body de la solicitud.

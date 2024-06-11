@@ -182,14 +182,16 @@ router.post('/call', async (req, res) => {
                 rate: '82%'
             }, 'Nos pondremos en contacto con usted por whatsapp para confirmar su dirección.')
             
-            const call = await twilio.calls.create({
-                twiml: twiml.toString(),
-                to: clientNumber,
-                from: process.env.SUPPORT_NUMBER,
-                statusCallback: 'https://call-api-test.vercel.app/call-status',
-                statusCallbackEvent: ['initiated', 'answered'],
-                statusCallbackMethod: 'POST'
-            })
+            const call = await twilio.calls
+                .create({
+                    twiml: twiml.toString(),
+                    to: clientNumber,
+                    from: process.env.SUPPORT_NUMBER,
+                    machineDetection: 'Enable',
+                    statusCallback: 'https://call-api-test.vercel.app/call-status',
+                    statusCallbackEvent: ['initiated', 'answered', 'completed'],
+                    statusCallbackMethod: 'POST'
+                })
             await userData.updateData({
                 userID: userID,
                 store: name_store,
@@ -207,6 +209,40 @@ router.post('/call', async (req, res) => {
         res.status(400).json({ error: error.message })
     }
 })
+
+// 
+
+let counterCalls = []
+
+async function active() {
+    let counter = 0
+    await twilio.calls.list({ limit: 100, to: '573102950378' })
+        .then(calls => calls.forEach(call => {
+            // let existingCall = counterCalls.find(callFound => callFound.phoneNumber === call.to);
+            
+            // if (existingCall) {
+            //     existingCall.counter = (existingCall.counter || 1) + 1;
+            // } else {
+            //     counterCalls.push({
+            //         phoneNumber: call.to,
+            //         counter: 1
+            //     });
+            // }
+            
+            // console.log(`SID: ${call.sid}, DATE: ${call.startTime}`)
+            console.log(`SID: ${call.sid}, STATUS: ${call.status} DATE: ${call.startTime}`)
+
+            // console.log(call.status)
+            counter++
+        }));
+    
+    console.log(counter);
+}
+
+active()
+
+
+
 router.post('/validation', validation)
 router.post('/change-address', changeAddress)
 router.post('/send-message', sendMessage)
